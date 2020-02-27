@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset='utf-8' />
+  <title>Find elevations with the Tilequery API</title>
+  <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+  <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.8.1/mapbox-gl.js'></script>
+  <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.8.1/mapbox-gl.css' rel='stylesheet' />
+  <script
+  src='https://code.jquery.com/jquery-3.4.1.min.js'></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    #map {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 100%;
+    }
+    
+    .eleInfo {
+      position: absolute;
+      font-family: sans-serif;
+      margin-top: 15px;
+      padding: 15px;
+      width: 250px;
+      border: 2px solid black;
+      font-size: 22px;
+      color: #fff;
+      background-color: #262629
+    }
+	
+	#menu {
+	  position: absolute;
+	  margin-top: 150px;
+	  background: #262629;
+	  color: #fff;
+	  padding: 10px;
+	  font-family: 'Open Sans', sans-serif;
+	}
+  </style>
+</head>
+
+<body>
+
+  <div id='map'></div>
+  <div class="eleInfo">
+    <div>Longitude: <span id='lng'></span></div>
+    <div>Latitude: <span id='lat'></span></div>
+    <div>Elevation: <span id='ele'></span></div>
+  </div>
+  
+  <div id="menu">
+  	<input id="satellite-streets-v11" type="radio" name="rtoggle" value="satellite" checked = "checked" />
+	<label for="satellite">Satellite</label>
+	<input id="outdoors-v11" type="radio" name="rtoggle" value="basemap" />
+	<label for="basemap">Basemap</label>
+  </div>
+
+  <script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoibmtvdGxpbnNraSIsImEiOiJjanRyYnJteHUwb2JhNDRtdWR4bHRiem9uIn0.wtil2ENruTPGdwliR5p7bg';
+    
+	var bounds = [
+		[-93, -19.23], // Southwest coordinates
+		[-30, 12] // Northeast coordinates
+	];
+	
+	var map = new mapboxgl.Map({
+      container: 'map', // Specify the container ID
+      //style: 'mapbox://styles/mapbox/outdoors-v11', // Specify which map style to use
+	  style: 'mapbox://styles/mapbox/satellite-streets-v11',
+      center: [-61.17, -4], // Specify the starting position [lng, lat]
+      zoom: 4.5, // Specify the starting zoom
+	  maxBounds: bounds
+    });
+    
+    var lng;
+    var lat;
+    var lngDisplay = document.getElementById('lng');
+    var latDisplay = document.getElementById('lat');
+    var eleDisplay = document.getElementById('ele');
+	//var zom = document.getElementById('zom');
+    
+	// Basemap selection variables
+	var layerList = document.getElementById('menu');
+	var inputs = layerList.getElementsByTagName('input');
+	
+    var marker = new mapboxgl.Marker({
+      'color': '#0000FF'
+    });
+
+    map.on('click', function(e) {
+      // Use the returned LngLat object to set the marker location
+      // https://docs.mapbox.com/mapbox-gl-js/api/#lnglat
+      //marker.getZoom().toFixed(2).addTo(map);
+	  marker.setLngLat(e.lngLat).addTo(map);
+      
+      // Create variables set to the LngLat object's lng and lat properties
+      lng = e.lngLat.lng;
+      lat = e.lngLat.lat;
+      
+      getElevation();
+    });
+
+    function getElevation() {
+      // Make the API request
+      var query = 'https://api.mapbox.com/v4/mapbox.mapbox-terrain-v2/tilequery/' + lng + ',' + lat + '.json?layers=contour&limit=50&access_token=' + mapboxgl.accessToken;
+      $.ajax({
+        method: 'GET',
+        url: query,
+      }).done(function(data) {
+        // Display the longitude and latitude values
+        lngDisplay.textContent = lng.toFixed(2);
+        latDisplay.textContent = lat.toFixed(2);
+        // Get all the returned features
+        var allFeatures = data.features;
+        // Create an empty array to add elevation data to
+        var elevations = [];
+        // For each returned feature, add elevation data to the elevations array
+        for (i = 0; i < allFeatures.length; i++) {
+          elevations.push(allFeatures[i].properties.ele);
+        }
+        // In the elevations array, find the largest value
+        var highestElevation = Math.max(...elevations);
+        // Display the largest elevation value
+        eleDisplay.textContent = highestElevation + ' meters';
+      });
+    }
+
+	function switchLayer(layer) {
+	var layerId = layer.target.id;
+	map.setStyle('mapbox://styles/mapbox/' + layerId);
+	}
+ 
+	for (var i = 0; i < inputs.length; i++) {
+	inputs[i].onclick = switchLayer;
+	}
+	
+  </script>
+
+</body>
+
+</html>
